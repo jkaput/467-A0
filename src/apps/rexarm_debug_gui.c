@@ -18,12 +18,28 @@
 #include "common/timestamp.h"
 #include "math/math_util.h"
 
+// core api
+#include "vx/vx.h"
+#include "vx/vx_util.h"
+#include "vx/vx_remote_display_source.h"
+#include "vx/gtk/vx_gtk_display_source.h"
+
+// drawables
+#include "vx/vxo_drawables.h"
+
+#include "eecs467_util.h"    // This is where a lot of the internals live
+
 #define NUM_SERVOS 6
 
 typedef struct state state_t;
 struct state
 {
     getopt_t *gopt;
+
+    // vx_stuff
+    vx_application_t    vxapp;
+    vx_world_t         *vxworld;      // where vx objects are live
+    vx_event_handler_t *vxeh; // for getting mouse, key, and touch events
 
     // LCM
     lcm_t *lcm;
@@ -34,6 +50,26 @@ struct state
     pthread_t command_thread;
 };
 
+static int
+mouse_event (vx_event_handler_t *vxeh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_mouse_event_t *mouse)
+{
+
+    return 0;
+}
+
+static int
+key_event (vx_event_handler_t *vxeh, vx_layer_t *vl, vx_key_event_t *key)
+{
+    //state_t *state = vxeh->impl;
+    return 0;
+}
+
+static int
+touch_event (vx_event_handler_t *vh, vx_layer_t *vl, vx_camera_pos_t *pos, vx_touch_event_t *mouse)
+{
+    return 0; // Does nothing
+}
+
 
 static void
 status_handler (const lcm_recv_buf_t *rbuf,
@@ -41,10 +77,20 @@ status_handler (const lcm_recv_buf_t *rbuf,
                 const dynamixel_status_list_t *msg,
                 void *user)
 {
+    state_t *state = user;
     // Print out servo positions
     for (int id = 0; id < msg->len; id++) {
         dynamixel_status_t stat = msg->statuses[id];
         printf ("[id %d]=%6.3f ",id, stat.position_radians);
+        vx_object_t *vxo_square = vxo_chain (vxo_mat_translate2 (id * 3, 0),
+                                             vxo_mat_scale (0.1),
+                                             vxo_mat_scale3(2,2,msg->statuses[id].position_radians),
+                                             vxo_box (vxo_lines_style (vx_red, 2)));
+
+        // We add this object to a different buffer so it may be rendered
+        // separately if desired
+        vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "osc-square"), vxo_square);
+        vx_buffer_swap (vx_world_get_buffer (state->vxworld, "osc-square"));
     }
     printf ("\n");
 }
@@ -110,6 +156,35 @@ command_loop (void *user)
     return NULL;
 }
 
+void
+run_gui (vx_application_t *app, int w, int h)
+{
+    // Creates a GTK window to wrap around our vx display canvas. The vx world
+    // is rendered to the canvas widget, which acts as a viewport into your
+    // virtual world.
+    vx_gtk_display_source_t *appwrap = vx_gtk_display_source_create (app);
+    GtkWidget *window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    GtkWidget *canvas = vx_gtk_display_source_get_widget (appwrap);
+    gtk_window_set_default_size (GTK_WINDOW (window), w, h);
+
+    // Pack a parameter gui and canvas into a vertical box
+    GtkWidget *vbox = gtk_vbox_new (0, 0);
+    gtk_box_pack_start (GTK_BOX (vbox), canvas, 1, 1, 0);
+    gtk_widget_show (canvas);    // XXX Show all causes errors!
+
+    gtk_container_add (GTK_CONTAINER (window), vbox);
+    gtk_widget_show (window);
+    gtk_widget_show (vbox);
+
+    g_signal_connect_swapped (G_OBJECT (window), "destroy", G_CALLBACK (gtk_main_quit), NULL);
+
+    gtk_main (); // Blocks as long as GTK window is open
+    gdk_threads_leave ();
+
+    // destroy function was causing segfault, so comment it out for now
+    //vx_gtk_display_source_destroy (appwrap);
+}
+
 // This subscribes to the status messages sent out by the arm, displaying servo
 // state in the terminal. It also sends messages to the arm ordering it to the
 // "home" position (all servos at 0 radians).
@@ -117,6 +192,7 @@ int
 main (int argc, char *argv[])
 {
     eecs467_init (argc, argv);
+
 
     getopt_t *gopt = getopt_create ();
     getopt_add_bool (gopt, 'h', "help", 0, "Show this help screen");
@@ -133,11 +209,26 @@ main (int argc, char *argv[])
     state_t *state = calloc (1, sizeof(*state));
     state->gopt = gopt;
     state->lcm = lcm_create (NULL);
+    state->vxworld = vx_world_create ();
+    state->vxeh = calloc (1, sizeof(*state->vxeh));
+    state->vxeh->key_event = key_event;
+    state->vxeh->mouse_event = mouse_event;
+    state->vxeh->touch_event = touch_event;
+    state->vxeh->dispatch_order = 100;
+    state->vxeh->impl = state; // this gets passed to events, so store useful struct here!
+
+    state->vxapp.display_started = eecs467_default_display_started;
+    state->vxapp.display_finished = eecs467_default_display_finished;
+    state->vxapp.impl = eecs467_default_implementation_create (state->vxworld, state->vxeh);
+
     state->command_channel = getopt_get_string (gopt, "command-channel");
     state->status_channel = getopt_get_string (gopt, "status-channel");
 
     pthread_create (&state->status_thread, NULL, status_loop, state);
     pthread_create (&state->command_thread, NULL, command_loop, state);
+
+    // This is the main loop
+    run_gui (&state->vxapp, 1024, 768);
 
     // Probably not needed, given how this operates
     pthread_join (state->status_thread, NULL);
