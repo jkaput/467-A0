@@ -116,6 +116,8 @@ command_loop (void *user)
 int
 main (int argc, char *argv[])
 {
+    eecs467_init (argc, argv);
+
     getopt_t *gopt = getopt_create ();
     getopt_add_bool (gopt, 'h', "help", 0, "Show this help screen");
     getopt_add_bool (gopt, 'i', "idle", 0, "Command all servos to idle");
@@ -127,6 +129,7 @@ main (int argc, char *argv[])
         exit (EXIT_FAILURE);
     }
 
+    
     state_t *state = calloc (1, sizeof(*state));
     state->gopt = gopt;
     state->lcm = lcm_create (NULL);
