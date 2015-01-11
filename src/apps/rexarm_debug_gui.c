@@ -78,19 +78,21 @@ status_handler (const lcm_recv_buf_t *rbuf,
                 void *user)
 {
     state_t *state = user;
+    char plot_channel[5] = "bar1";
     // Print out servo positions
     for (int id = 0; id < msg->len; id++) {
         dynamixel_status_t stat = msg->statuses[id];
         printf ("[id %d]=%6.3f ",id, stat.position_radians);
-        vx_object_t *vxo_square = vxo_chain (vxo_mat_translate2 (id * 3, 0),
-                                             vxo_mat_scale (0.1),
-                                             vxo_mat_scale3(2,2,msg->statuses[id].position_radians),
+	float bar_scale = 50;
+        vx_object_t *vxo_square = vxo_chain (vxo_mat_translate2 (id * (1.1), msg->statuses[id].position_radians/2.0*bar_scale),
+                                             vxo_mat_scale3(1,msg->statuses[id].position_radians * bar_scale,1),
                                              vxo_box (vxo_lines_style (vx_red, 2)));
 
         // We add this object to a different buffer so it may be rendered
         // separately if desired
-        vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "osc-square"), vxo_square);
-        vx_buffer_swap (vx_world_get_buffer (state->vxworld, "osc-square"));
+        plot_channel[3] = '0' + id;
+        vx_buffer_add_back (vx_world_get_buffer (state->vxworld, plot_channel), vxo_square);
+        vx_buffer_swap (vx_world_get_buffer (state->vxworld, plot_channel));
     }
     printf ("\n");
 }
@@ -220,6 +222,8 @@ main (int argc, char *argv[])
     state->vxapp.display_started = eecs467_default_display_started;
     state->vxapp.display_finished = eecs467_default_display_finished;
     state->vxapp.impl = eecs467_default_implementation_create (state->vxworld, state->vxeh);
+    vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "grid"), vxo_grid());
+    vx_buffer_swap (vx_world_get_buffer (state->vxworld, "grid"));
 
     state->command_channel = getopt_get_string (gopt, "command-channel");
     state->status_channel = getopt_get_string (gopt, "status-channel");
