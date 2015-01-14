@@ -11,9 +11,10 @@ BIN_LASER_TEST = $(BIN_PATH)/maebot_laser_test
 BIN_MOTOR_FEEDBACK_TEST = $(BIN_PATH)/maebot_motor_feedback_test
 BIN_DIFF_DRIVE_TEST = $(BIN_PATH)/maebot_diff_drive_test
 BIN_SENSOR_DATA_TEST = $(BIN_PATH)/maebot_sensor_data_test
+BIN_PROJECT0 = $(BIN_PATH)/project0
 
 ALL = $(BIN_MAEBOT_DRIVER) $(BIN_LED_TEST) $(BIN_LASER_TEST) $(BIN_MOTOR_FEEDBACK_TEST) \
-      $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) $(BIN_RPLIDAR_DRIVER)
+      $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) $(BIN_RPLIDAR_DRIVER) $(BIN_PROJECT0)
 
 all: $(ALL)
 
@@ -42,6 +43,10 @@ $(BIN_DIFF_DRIVE_TEST): diff_drive_test.o $(LIBDEPS)
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_SENSOR_DATA_TEST): sensor_data_test.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
+
+$(BIN_PROJECT0): project0.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 

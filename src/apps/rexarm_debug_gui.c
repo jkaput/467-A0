@@ -83,7 +83,7 @@ status_handler (const lcm_recv_buf_t *rbuf,
     for (int id = 0; id < msg->len; id++) {
         dynamixel_status_t stat = msg->statuses[id];
         printf ("[id %d]=%6.3f ",id, stat.position_radians);
-	float bar_scale = 50;
+		float bar_scale = 30;
         vx_object_t *vxo_square = vxo_chain (vxo_mat_translate2 (id * (1.1), msg->statuses[id].position_radians/2.0*bar_scale),
                                              vxo_mat_scale3(1,msg->statuses[id].position_radians * bar_scale,1),
                                              vxo_box (vxo_lines_style (vx_red, 2)));

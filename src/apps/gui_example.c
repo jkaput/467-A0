@@ -178,7 +178,7 @@ animate_thread (void *data)
         double rad = (vx_util_mtime () % 5000) * 2. * M_PI / 5e3;   // [ 0, 2PI]
         double osc = ((vx_util_mtime () % 5000) / 5e3) * 2. - 1;    // [-1, 1]
 
-        // Creates a blue box and applies a series of rigid body transformations
+        // Creates a blue sphere and applies a series of rigid body transformations
         // to it. A vxo_chain applies its arguments sequentially. In this case,
         // then, we rotate our coordinate frame by rad radians, as determined
         // by the current time above. Then, the origin of our coordinate frame
