@@ -25,14 +25,21 @@ BIN_ISVIEW = $(BIN_PATH)/isview
 BIN_ISVIEW_PPM = $(BIN_PATH)/isview_ppm
 BIN_ISTEST = istest
 BIN_TCPSTREAM = tcpstream
+BIN_ISVIEW_PROJECT_0 = $(BIN_PATH)/isview_project_0
+BIN_TAKE_A_PIC = $(BIN_PATH)/take_a_pic
 
-ALL = $(LIB_IMAGESOURCE) $(BIN_ISVIEW) $(BIN_ISTEST) $(BIN_TCPSTREAM) $(BIN_ISVIEW_PPM)
+ALL = $(BIN_ISVIEW_PROJECT_0) $(BIN_TAKE_A_PIC)  $(LIB_IMAGESOURCE) $(BIN_ISVIEW) $(BIN_ISTEST) $(BIN_TCPSTREAM) $(BIN_ISVIEW_PPM)
 
 all: $(ALL)
 
 $(LIB_IMAGESOURCE): $(LIBIMAGESOURCE_OBJS) $(LIBDEPS)
 	@echo "\t$@"
 	@ar rc $@ $^
+
+
+$(BIN_ISVIEW_PROJECT_0): isview_project_0.o $(LIB_IMAGESOURCE) $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_ISVIEW): isview.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 	@echo "\t$@"
@@ -49,6 +56,11 @@ $(BIN_ISTEST): istest.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 $(BIN_TCPSTREAM): tcp_image_streamer.o $(LIB_IMAGESOURCE) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
+
+$(BIN_TAKE_A_PIC): take_a_pic.o $(LIB_IMAGESOURCE) $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS)
+
 
 clean:
 	@rm -f *~ *.o
