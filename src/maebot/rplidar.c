@@ -96,7 +96,30 @@ void rp_lidar_reset(int dev)
     send_command_raw(dev, REQUEST_RESET, NULL, 0);
 }
 
-void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
+static void add_point(float x, float y, float *points, int *num)
+{
+  if((x == 0.0) && (y = 0.0))
+    return;
+  if((*num) == 0){
+    points[0] = x;
+    points[1] = y;
+    points[2] = 0.0;
+    (*num) += 1;
+  }
+  else{
+    points[(*num)*3 + 0] = x;
+    points[(*num)*3 + 1] = y;
+    points[(*num)*3 + 2] = 0.0;
+    points[(*num)*3 + 3] = x;
+    points[(*num)*3 + 4] = y;
+    points[(*num)*3 + 5] = 0.0;
+    (*num) += 2;
+  }
+  return;
+}
+
+void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel, float *pts, int *numpts)
+//void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
 {
     send_command_raw(dev, REQUEST_SCAN, NULL, 0);
 
@@ -123,6 +146,8 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
     int64_t now;
     int16_t angle, range;
     int8_t quality;
+
+    float x, y;
 
     maebot_laser_scan_t laser;
     laser.ranges = ranges;
@@ -160,6 +185,14 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         times[count] = now;
         intensities[count] = (float)quality/0x3f;
 
+	x = ranges[count] * cos(thetas[count]);
+	y = ranges[count] * sin(thetas[count]);
+	if((x != 0.0) && (y != 0.0)){
+	  //printf("count: %" PRId32 "\tx: %f\ty: %f\n", count, x, y);
+	  add_point(x,y,pts,numpts);
+	}
+	if(count > 300)
+	  halt = 1;
         count++;
     }
 
