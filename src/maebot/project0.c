@@ -8,7 +8,7 @@
 #include "common/timestamp.h"
 #include "lcmtypes/maebot_motor_command_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
-#include "take_a_pic.h"
+#include "take_a_pic_2.h"
 
 #define PERIOD 50000 //us  -> 20Hz
 #define MOTOR_SPEED 0.25f
@@ -23,18 +23,11 @@
 maebot_motor_command_t motor_msg;
 pthread_mutex_t motor_msg_mutex;
 
-//start motor feedback to get ticks
-/*lcm_t *lcm = lcm_create (NULL);
-
-maebot_motor_feedback_t_subscribe (lcm,
-                 	              	"MAEBOT_MOTOR_FEEDBACK",
-								   	motor_feedback_handler,
-									NULL);
-*/
-//keep track of ticks
+//keep track of ticks and pics
 typedef struct{
 	int32_t left;
 	int32_t right;
+	int pic;
 }State;
 
 State state;
@@ -83,15 +76,6 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 	state.right = msg->encoder_right_ticks;
 }
 
-/*
-typedef struct{
-	float x;
-	float y;
-	float theta;
-}State;
-
-State state = {0.0, 0.0, 0.0};
-*/
 
 
 void drive_forward(int dist){
@@ -104,10 +88,6 @@ void drive_forward(int dist){
 									NULL);
 
 	lcm_handle (lcm);
-	usleep(1000000);
-	//store value of ticks before moving
-//	int32_t left_init = state.left;
-//	int32_t right_init = state.right;
 
 	//move
 	pthread_mutex_lock (&motor_msg_mutex);
@@ -135,11 +115,11 @@ void drive_forward(int dist){
 		right_change = state.right - right_init;
 		diff = left_change - right_change;
 		
-		if(diff < 0)
-				diff = 0;
+		if(diff < -150)		//seems to have probs otherwise
+				diff = -150;
 
 		pthread_mutex_lock (&motor_msg_mutex);
-    	motor_msg.motor_left_speed  = MOTOR_SPEED;
+    		motor_msg.motor_left_speed  = MOTOR_SPEED;
 		motor_msg.motor_right_speed = MOTOR_SPEED * (1.0f + (float)diff/800.0f); 
 		pthread_mutex_unlock (&motor_msg_mutex);
 			
@@ -147,7 +127,7 @@ void drive_forward(int dist){
 	
 	//stop
 	pthread_mutex_lock (&motor_msg_mutex);
-    motor_msg.motor_left_speed  = MOTOR_STOP;
+    	motor_msg.motor_left_speed  = MOTOR_STOP;
 	motor_msg.motor_right_speed = MOTOR_STOP; 
 	pthread_mutex_unlock (&motor_msg_mutex);
 
@@ -166,9 +146,6 @@ void turn_left(){
 
 	lcm_handle(lcm);
 
-//	int32_t left_init = state.left;
-//	int32_t target = state.left - 60;//doesnt make math sense
-									//fudging to make work(sort of)
 
 	//turn left
 	pthread_mutex_lock (&motor_msg_mutex);
@@ -176,36 +153,31 @@ void turn_left(){
 	motor_msg.motor_right_speed = MOTOR_SPEED * 0.75f; 
 	pthread_mutex_unlock (&motor_msg_mutex);
 	
-	//keep updating state while not met distance target
-//	while(state.left > target)
-//			lcm_handle (lcm);
 	usleep(1000000 - 200);
 	//stop
 	pthread_mutex_lock (&motor_msg_mutex);
-    motor_msg.motor_left_speed  = MOTOR_STOP;
+   	 motor_msg.motor_left_speed  = MOTOR_STOP;
 	motor_msg.motor_right_speed = MOTOR_STOP; 
 	pthread_mutex_unlock (&motor_msg_mutex);
-	pthread_mutex_lock (&motor_msg_mutex);
-    motor_msg.motor_left_speed  = MOTOR_STOP;
-	motor_msg.motor_right_speed = MOTOR_STOP; 
-	pthread_mutex_unlock (&motor_msg_mutex);
-
-	lcm_handle(lcm);
-
 }
 
 void drive_in_a_rectangle(){
-
-	for(int i = 0; i < 1; ++i){
-		drive_forward(2);
-		turn_left();
-		drive_forward(3);
-		turn_left();
-		drive_forward(2);
-		turn_left();
-		drive_forward(3);
-		turn_left();
-	}
+	
+	drive_forward(2);
+	take_a_pic(state.pic++);
+	turn_left();
+	
+	drive_forward(3);
+	take_a_pic(state.pic++);
+	turn_left();
+	
+	drive_forward(2);
+	take_a_pic(state.pic++);
+	turn_left();
+	
+	drive_forward(3);
+	take_a_pic(state.pic++);
+	turn_left();
 }
 
 
@@ -223,29 +195,19 @@ int main(int argc, char** argv){
 
 	//initiallize motor command thread
 	pthread_t diff_drive_thread_pid;
-    pthread_create (&diff_drive_thread_pid, NULL, diff_drive_thread, NULL);
+    	pthread_create (&diff_drive_thread_pid, NULL, diff_drive_thread, NULL);
 	
-	//initialize motor feedback
-/*	lcm_t *lcm = lcm_create (NULL);
-	    if(!lcm)
-			return 1;
-
+	state.pic = 0;
 	
-	maebot_motor_feedback_t_subscribe (lcm,
-                                       	"MAEBOT_MOTOR_FEEDBACK",
-									   	motor_feedback_handler,
-										NULL);*/
-	drive_in_a_rectangle();
+	for(int i = 0; i < 3; ++i){
+		drive_in_a_rectangle();
+	}
 
 	pthread_mutex_lock (&motor_msg_mutex);
-    motor_msg.motor_left_speed  = MOTOR_STOP;
+	motor_msg.motor_left_speed  = MOTOR_STOP;
 	motor_msg.motor_right_speed = MOTOR_STOP; 
 	pthread_mutex_unlock (&motor_msg_mutex);
 	
-	usleep(2000000);
-
-	take_a_pic();
-		
 	return 0;
 }
 
