@@ -7,9 +7,12 @@
 
 #include "common/getopt.h"
 
-#include "image_u8x3.h"
-#include "image_source.h"
-#include "image_convert.h"
+#include "../imagesource/image_u8x3.h"
+#include "../imagesource/image_source.h"
+#include "../imagesource/image_convert.h"
+
+#ifndef TAKE_A_PIC_H
+#define TAKE_A_PIC_H
 
 typedef struct state state_t;
 struct state {
@@ -19,7 +22,6 @@ struct state {
 
     getopt_t *gopt;
 
-    pthread_t runthread;
 
     GtkWidget *window;
     GtkWidget *image;
@@ -92,110 +94,35 @@ callback_func (GtkWidget *widget, GdkEventKey *event, gpointer callback_data)
         }
     }
     printf("got callback\n");
-    return 0;
+    gtk_main_quit();
+	return 0;
 }
-/*
-void *
-runthread (void *_p)
-{
-    state_t *state = (state_t*) _p;
-    image_source_t *isrc = state->isrc;
-	int i = 1;
-    while (i) {
-		
-		--i;
-        image_source_data_t isdata;
-        image_u8x3_t *im = NULL;
 
-        pthread_mutex_lock(&state->mutex);
-        int res = isrc->get_frame(isrc, &isdata);
-        if (!res) {
-printf("captured frame??\n\n");
-            im = image_convert_u8x3(&isdata);
-
-            if (state->record_islog) {
-                write_u64(state->record_islog, 0x17923349ab10ea9aUL);
-                write_u64(state->record_islog, isdata.utime);
-                write_u32(state->record_islog, isdata.ifmt.width);
-                write_u32(state->record_islog, isdata.ifmt.height);
-                int formatlen = strlen(isdata.ifmt.format);
-                write_u32(state->record_islog, formatlen);
-                fwrite(isdata.ifmt.format, 1, formatlen, state->record_islog);
-                write_u32(state->record_islog, isdata.datalen);
-                fwrite(isdata.data, 1, isdata.datalen, state->record_islog);
-                fflush(state->record_islog);
-            }
-        }
-
-        isrc->release_frame(isrc, &isdata);
-        pthread_mutex_unlock(&state->mutex);
-
-        if (res)
-            goto error;
-
-        if (im != NULL) {
-            gdk_threads_enter();
-
-            GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data((guchar*) im->buf,
-                                                         GDK_COLORSPACE_RGB, 0, 8,
-                                                         im->width, im->height, im->stride,
-                                                         my_gdkpixbufdestroy,
-                                                         NULL);
-
-
-            gtk_image_set_from_pixbuf(GTK_IMAGE(state->image), pixbuf);
-            g_object_unref(G_OBJECT(pixbuf));
-
-            gdk_threads_leave();
-
-
-        }
-
-        usleep(0);
-    }
-
-  error:
-    isrc->stop(isrc);
-    printf("exiting\n");
-    
-    return NULL;
-}*/
-
-int
-main (int argc, char *argv[] )
+void take_a_pic (/*int argc, char *argv[]*/ )
 {
     state_t *state = calloc(1, sizeof(*state));
-    state->gopt = getopt_create();
 
-    getopt_add_bool(state->gopt, 'h', "--help", 0, "Show this help");
 
-    if (!getopt_parse(state->gopt, argc, argv, 0)) {
-        getopt_do_usage(state->gopt);
-        exit(-1);
+
+    zarray_t *urls = image_source_enumerate();
+
+    printf("Cameras:\n");
+    for (int i = 0; i < zarray_size(urls); i++) {
+        char *url;
+        zarray_get(urls, i, &url);
+        printf("  %3d: %s\n", i, url);
     }
 
-    const zarray_t *args = getopt_get_extra_args(state->gopt);
-    if (zarray_size(args) > 0) {
-        zarray_get(args, 0, &state->url);
-    } else {
-        zarray_t *urls = image_source_enumerate();
-
-        printf("Cameras:\n");
-        for (int i = 0; i < zarray_size(urls); i++) {
-            char *url;
-            zarray_get(urls, i, &url);
-            printf("  %3d: %s\n", i, url);
-        }
-
-        if (zarray_size(urls) == 0) {
-            printf("No cameras found.\n");
-            exit(0);
-        }
-        zarray_get(urls, 0, &state->url);
+    if (zarray_size(urls) == 0) {
+        printf("No cameras found.\n");
+        exit(0);
     }
+    zarray_get(urls, 0, &state->url);
+    
 
     g_type_init();
-    gtk_init (&argc, &argv);
+    //gtk_init (&argc, &argv);
+    gtk_init(0, NULL);
     gdk_threads_init();
 
     state->window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -241,23 +168,16 @@ main (int argc, char *argv[] )
         printf("\t%-20s %10f     %s\n", feature_name, v, feature_type);
         free(feature_type);
     }
-////picutre taking starts here???  
-//    state_t *state = (state_t*) _p;
-//    image_source_t *isrc = state->isrc;
-//	int i = 1;
-//    while (i) {
-		
-//		--i;
-        image_source_data_t isdata;
+        
+	image_source_data_t isdata;
         image_u8x3_t *im = NULL;
 
         pthread_mutex_lock(&state->mutex);
         
 	int res = isrc->get_frame(isrc, &isdata);
-	while(res){
-printf("attempt\n");
+	while(res)
 		res = isrc->get_frame(isrc, &isdata);
-	}
+	
 
         if (!res) {
 printf("captured frame??\n\n");
@@ -281,42 +201,34 @@ printf("captured frame??\n\n");
         isrc->release_frame(isrc, &isdata);
         pthread_mutex_unlock(&state->mutex);
 
-//        if (res)
-//            goto error;
 
         if (im != NULL) {
             gdk_threads_enter();
-printf("one\n");
-usleep(1000000*2);
             GdkPixbuf *pixbuf = gdk_pixbuf_new_from_data((guchar*) im->buf,
                                                          GDK_COLORSPACE_RGB, 0, 8,
                                                          im->width, im->height, im->stride,
                                                          my_gdkpixbufdestroy,
                                                          NULL);
 
-printf("two\n");
-usleep(1000000*2);
 
             gtk_image_set_from_pixbuf(GTK_IMAGE(state->image), pixbuf);
-printf("three\n");
-usleep(1000000*2);
             g_object_unref(G_OBJECT(pixbuf));
-printf("four\n");
-usleep(1000000*2);
 
             gdk_threads_leave();
-printf("five\n");
-usleep(1000000*2);
 
 
         }
 
         usleep(0);
- //  }//while
 
- //   pthread_create(&state->runthread, NULL, runthread, state);
-	printf("made it here!!!\n\n");
+printf("made it here!!!\n\n");
+//	gtk_main_iteration();
     gtk_main();
-
-    return 0;
+//    gtk_main_quit();
+    
+	//display picture
+	usleep(5*1000000);
+	return 0;
 }
+
+#endif

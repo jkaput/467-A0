@@ -8,6 +8,7 @@
 #include "common/timestamp.h"
 #include "lcmtypes/maebot_motor_command_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
+#include "take_a_pic.h"
 
 #define PERIOD 50000 //us  -> 20Hz
 #define MOTOR_SPEED 0.25f
@@ -242,7 +243,9 @@ int main(int argc, char** argv){
 	pthread_mutex_unlock (&motor_msg_mutex);
 	
 	usleep(2000000);
-	
+
+	take_a_pic();
+		
 	return 0;
 }
 
