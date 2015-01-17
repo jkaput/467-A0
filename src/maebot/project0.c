@@ -60,7 +60,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     int res = system ("clear");
     if (res)
         printf ("system clear failed\n");
-
+/*
     printf ("Subscribed to channel: %s\n", channel);
     printf ("utime: %"PRId64"\n", msg->utime);
     printf ("encoder_[left, right]_ticks:\t\t%d,\t%d\n",
@@ -71,7 +71,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
             msg->motor_left_commanded_speed, msg->motor_right_commanded_speed);
     printf ("motor_[left, right]_actual_speed:\t%f,\t%f\n",
             msg->motor_left_commanded_speed, msg->motor_right_commanded_speed);
-
+*/
 	state.left = msg->encoder_left_ticks;
 	state.right = msg->encoder_right_ticks;
 }
@@ -139,9 +139,9 @@ void turn_left(){
 	lcm_t *lcm = lcm_create (NULL);
 
 	maebot_motor_feedback_t_subscribe (lcm,
-                 	              	"MAEBOT_MOTOR_FEEDBACK",
-								   	motor_feedback_handler,
-									NULL);
+                 	"MAEBOT_MOTOR_FEEDBACK",
+			motor_feedback_handler,
+			NULL);
 
 
 	lcm_handle(lcm);
@@ -207,7 +207,8 @@ int main(int argc, char** argv){
 	motor_msg.motor_left_speed  = MOTOR_STOP;
 	motor_msg.motor_right_speed = MOTOR_STOP; 
 	pthread_mutex_unlock (&motor_msg_mutex);
-	
+
+	usleep(1000000);	
 	return 0;
 }
 
