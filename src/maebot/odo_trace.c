@@ -53,8 +53,8 @@ vx_state_t vx_state;
 int32_t delta_left;
 int32_t delta_right;
 float delta_s;
-float delta_s_left;
-float delta_s_right;
+float delta_s_l;
+float delta_s_r;
 float delta_x;
 float delta_y;
 float delta_theta;
@@ -87,10 +87,10 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 	} else{
 		delta_left = msg->encoder_left_ticks - odo_state.left;
 		delta_right = msg->encoder_right_ticks - odo_state.right;
-		delta_s_left = DISTANCE_TICK * delta_left;
-		delta_s_right = DISTANCE_TICK * delta_right;
-		delta_s =((float)(delta_s_left + delta_s_right))/2.0;
-		delta_theta = ((float)(delta_s_right - delta_s_left))/2.0 + matd_get(state.bot, 2, 0);
+		delta_s_l = DISTANCE_TICK * delta_left;
+		delta_s_r = DISTANCE_TICK * delta_right;
+		delta_s =((float)(delta_s_l + delta_s_r))/2.0;
+		delta_theta = ((float)(delta_s_r - delta_s_l))/2.0 + matd_get(state.bot, 2, 0);
 		matd_put(state.bot, 2, 0, delta_theta);
 		
 		delta_x = abs(delta_s)*cosf((float)delta_theta) + matd_get(state.bot, 0, 0);
@@ -109,7 +109,8 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 		state.buffer_name[6]++;
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer_name);
-		vx_object_t *trace = vxo_chain(vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+		vx_object_t *trace = vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
+					       vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		vx_buffer_add_back(buf, trace);
 		vx_buffer_swap(buf);
 	}//end else
