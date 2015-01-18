@@ -8,6 +8,7 @@
 #include "lcmtypes/maebot_motor_feedback_t.h"
 #include "lcmtypes/maebot_laser_scan_t.h"
 #include "../math/matd.h"
+#include "../math/fasttrig.h"
 
 #include <gtk/gtk.h>
 #include "vx/vxo_drawables.h"
@@ -17,22 +18,8 @@
 #include "vx/vx_world.h"
 #include "vx/vx_colors.h"
 
-
-//might not 
-/*
-typedef struct {
-	float x;
-	float y;
-	float theta;
-	int32_t left;
-	int32_t right;
-	int32_t prev_left;
-	int32_t prev_right;
-	int8_t init;
-}State;
-
-State state = {0.0, 0.0, 0.0, 0, 0, 0, 0, 0}; 
-*/
+#define WHEEL_BASE 0.08f
+#define WHEEL_DIAMETER 0.032f
 
 typedef struct{
   lcm_t *motor_lcm;
@@ -61,6 +48,9 @@ typedef struct{
 } vx_state_t;
 vx_state_t vx_state;
 
+int32_t delta_left;
+int32_t delta_right;
+float delta_s;
 float delta_x;
 float delta_y;
 float delta_theta;
@@ -84,19 +74,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     if (res)
         printf ("system clear failed\n");
     printf("Handling motor\n");
-/*  //print a bunch of info 
-    printf ("Subscribed to channel: %s\n", channel);
-    printf ("utime: %"PRId64"\n", msg->utime);
-    printf ("encoder_[left, right]_ticks:\t\t%d,\t%d\n",
-            msg->encoder_left_ticks, msg->encoder_right_ticks);
-    printf ("motor_current[left, right]:\t\t%d,\t%d\n",
-            msg->motor_current_left, msg->motor_current_right);
-    printf ("motor_[left, right]_commanded_speed:\t%f,\t%f\n",
-            msg->motor_left_commanded_speed, msg->motor_right_commanded_speed);
-    printf ("motor_[left, right]_actual_speed:\t%f,\t%f\n",
-            msg->motor_left_commanded_speed, msg->motor_right_commanded_speed);
-*/
-/*
+	
 	//update state
 	if(!odo_state.init){
 		odo_state.left = msg->encoder_left_ticks;
@@ -105,8 +83,18 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 	} else{
 		delta_left = msg->encoder_left_ticks - odo_state.left;
 		delta_right = msg->encoder_right_ticks - odo_state.right;
+		delta_s =((float)(delta_left + delta_right))/2.0;
+		delta_theta = ((float)(delta_right - delta_left))/2.0 + matd_get(state.bot, 2, 0);
+		matd_put(state.bot, 2, 0, delta_theta);
+		
+		delta_x = abs(delta_s)*cosf((float)delta_theta) + matd_get(state.bot, 0, 0);
+		matd_put(state.bot, 0, 0, delta_x);
+
+		delta_y = abs(delta_s)*sinf((float)delta_theta) + matd_get(state.bot, 1, 0);
+		matd_put(state.bot, 1, 0, delta_y);
+		
+
 	}//end else
-*/
 
 }
 
@@ -164,6 +152,8 @@ lcm_thread_handler(void *args)
 int
 main (int argc, char *argv[])
 {
+
+		fasttrig_init();
   vx_global_init();
   
   vx_state.world = vx_world_create();
@@ -188,13 +178,10 @@ main (int argc, char *argv[])
 	if(!state.lidar_lcm)
 	  return 1;
 
-	//printf ("utime,\t\tleft_ticks,\tright_ticks\n");
-	/*
 	maebot_motor_feedback_t_subscribe (state.motor_lcm,
                         	           "MAEBOT_MOTOR_FEEDBACK",
                 	                   motor_feedback_handler,
         	                           NULL);
-	*/
 	maebot_laser_scan_t_subscribe (state.lidar_lcm,
 				       "MAEBOT_LASER_SCAN",
 				       rplidar_feedback_handler,
