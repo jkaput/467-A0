@@ -52,8 +52,8 @@ vx_state_t vx_state;
 int32_t delta_left;
 int32_t delta_right;
 float delta_s;
-float delta_s_l;
-float delta_s_r;
+float delta_s_left;
+float delta_s_right;
 float delta_x;
 float delta_y;
 float delta_theta;
@@ -97,6 +97,10 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 
 		delta_y = abs(delta_s)*sinf((float)delta_theta) + matd_get(state.bot, 1, 0);
 		matd_put(state.bot, 1, 0, delta_y);
+
+		odo_state.left = msg->encoder_left_ticks;
+		odo_state.right = msg->encoder_right_ticks;
+		
 		
 
 	}//end else
