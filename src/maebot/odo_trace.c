@@ -6,28 +6,14 @@
 #include "lcmtypes/maebot_motor_feedback_t.h"
 #include "../math/matd.h"
 
-//might not 
-/*
-typedef struct {
-	float x;
-	float y;
-	float theta;
-	int32_t left;
-	int32_t right;
-	int32_t prev_left;
-	int32_t prev_right;
-	int8_t init;
-}State;
-
-State state = {0.0, 0.0, 0.0, 0, 0, 0, 0, 0}; 
-*/
-
+//robot in the world
 typedef struct{
 	matd_t* bot; // 3x1 state [x][y][theta]
 } State;
 
 State state;
 
+//previous odometry reading
 typedef struct{
 	int32_t left;
 	int32_t right;
@@ -36,11 +22,12 @@ typedef struct{
 
 Odo_State odo_state = {0, 0, 0};
 
-
-
-float delta_x;
-float delta_y;
-float delta_theta;
+//variables to calculate discrete integral
+int32_t delta_left = 0;
+int32_t delta_right = 0;
+float delta_x = 0.0;
+float delta_y = 0.0;
+float delta_theta = 0.0;
 
 static void
 motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
@@ -49,7 +36,8 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     int res = system ("clear");
     if (res)
         printf ("system clear failed\n");
-/*
+
+/*  //print a bunch of info 
     printf ("Subscribed to channel: %s\n", channel);
     printf ("utime: %"PRId64"\n", msg->utime);
     printf ("encoder_[left, right]_ticks:\t\t%d,\t%d\n",
@@ -63,12 +51,13 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 */
 
 	//update state
-	if(odo_state.init){
+	if(!odo_state.init){
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
-		state.init = 1;
+		odo_state.init = 1;
 	} else{
-		
+		delta_left = msg->encoder_left_ticks - odo_state.left;
+		delta_right = msg->encoder_right_ticks - odo_state.right;
 	}//end else
 
 
@@ -79,9 +68,6 @@ main (int argc, char *argv[])
 {
 	state.bot = matd_create(3,1); // [x][y][theta]
 	
-	delta_x = 0.0;
-	delta_y = 0.0;
-	delta_theta = 0.0;
 
 	lcm_t *lcm = lcm_create (NULL);
 	if(!lcm)
@@ -94,8 +80,11 @@ main (int argc, char *argv[])
                 	                   motor_feedback_handler,
         	                           NULL);
 
-	while (1)
+	while (1){
 		lcm_handle (lcm);
+		usleep(100000); //update state @ 10 Hz?
+	}
+		
 
 	return 0;
 }
