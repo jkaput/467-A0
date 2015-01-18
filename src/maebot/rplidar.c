@@ -13,6 +13,9 @@
 
 volatile int halt = 0;
 
+uint8_t need_publish;
+pthread_mutex_t need_publish_mutex;
+
 // Debugging
 static void dump(uint8_t *buf, int len)
 {
@@ -97,80 +100,8 @@ void rp_lidar_reset(int dev)
     send_command_raw(dev, REQUEST_RESET, NULL, 0);
 }
 
-void rp_lidar_scan_timed(int dev, lcm_t *lcm, const char *channel, int time)
-{
-    send_command_raw(dev, REQUEST_SCAN, NULL, 0);
-
-    // Reading info back. Multiple response. Loops forever!
-    rp_descriptor_t rd;
-    read_response_descriptor(dev, &rd);
-    if (rd.len < 0) {
-        printf("ERR: Could not read back scan descriptor\n");
-        return;
-    }
-
-    float d2r = 2.0f*M_PI/360.0f;
-
-    // Gather information forever and broadcast complete scans
-    // Scan packets are 5 bytes
-    int res;
-    uint8_t buf[5];
-    int32_t count = 0;
-    float ranges[2000];
-    float thetas[2000];
-    int64_t times[2000];
-    float intensities[2000];
-
-    int64_t now;
-    int16_t angle, range;
-    int8_t quality;
-    uint64_t start = utime_now();
-	
-    maebot_laser_scan_t laser;
-    laser.ranges = ranges;
-    laser.thetas = thetas;
-    laser.times = times;
-    laser.intensities = intensities;
-    while (utime_now() < start +(time * 1000000)) {
-        // Read in bytes
-        res = read_fully_timeout(dev, buf, 5, TIMEOUT_MS);
-        struct timeval tv;
-        gettimeofday (&tv, NULL);
-        now = (int64_t) tv.tv_sec * 1000000 + tv.tv_usec;
-        if (res < 1) {
-            if (VERBOSE)
-                printf("ERR: Could not read range return\n");
-            continue;
-        }
-
-        // Check for new scan
-        if ((buf[0] & 0x1) && !(buf[0] & 0x2)) {
-            if (count) {
-                laser.num_ranges = count;
-                maebot_laser_scan_t_publish(lcm, channel, &laser);
-                count = 0;
-            }
-            laser.utime = now;
-        }
-
-        quality = (buf[0] & 0xfc) >> 2;
-        angle = ((buf[1] & 0xfe) >> 1) | (buf[2] << 7);
-        range = buf[3] | (buf[4] << 8);
-
-        ranges[count] = (range/4.0f)/1000;
-        thetas[count] = (angle/64.0f)*d2r;
-        times[count] = now;
-        intensities[count] = (float)quality/0x3f;
-
-        count++;
-    }
-    
-    rp_lidar_stop(dev);
-    halt = 0;
-}
-
-
 void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
+//void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
 {
     send_command_raw(dev, REQUEST_SCAN, NULL, 0);
 
@@ -219,7 +150,14 @@ void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel)
         if ((buf[0] & 0x1) && !(buf[0] & 0x2)) {
             if (count) {
                 laser.num_ranges = count;
-                maebot_laser_scan_t_publish(lcm, channel, &laser);
+                if (need_publish == 1) {
+                    pthread_mutex_lock( &need_publish_mutex );
+
+                    maebot_laser_scan_t_publish(lcm, channel, &laser);
+                    need_publish = 0;
+
+                    pthread_mutex_unlock ( &need_publish_mutex );
+                }
                 count = 0;
             }
             laser.utime = now;
@@ -277,6 +215,7 @@ void rp_lidar_check_info(int dev)
 
 int rp_lidar_check_health(int dev)
 {
+    need_publish = 0;
     send_command_raw(dev, REQUEST_GET_HEALTH, NULL, 0);
 
     // Read health back. Single response

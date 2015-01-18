@@ -102,7 +102,7 @@ void take_a_pic (int num )
 	strcat(dest, number);
 	strcat(dest, format);
 
-printf(dest);
+    printf("%s", dest);
 	//convert pic to proper format and output
 	image_u32_t* img = image_convert_u32(&isdata);
 	image_u32_write_pnm(img, dest);
@@ -114,7 +114,6 @@ printf(dest);
 
 
 	printf("made it here!!!\n\n");
-	return 0;
 }
 
 #endif

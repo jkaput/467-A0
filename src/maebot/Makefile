@@ -19,7 +19,7 @@ BIN_ODO_TRACE = $(BIN_PATH)/odo_trace
 
 ALL = $(BIN_ODO_TRACE) $(LIB_EECS467) $(BIN_MAEBOT_DRIVER) $(BIN_LED_TEST) $(BIN_LASER_TEST) \
       $(BIN_MOTOR_FEEDBACK_TEST) $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) \
-      $(BIN_RPLIDAR_DRIVER) $(BIN_PROJECT0) $(BIN_LIDAR_SCAN) \
+      $(BIN_RPLIDAR_DRIVER) $(BIN_PROJECT0)
 
 all: $(ALL)
 
@@ -70,3 +70,4 @@ $(BIN_LIDAR_SCAN): lidar_scan.o rplidar.o $(LIB_EECS467) $(LIBDEPS)
 clean:
 	@rm -f *.o *~ *.a
 	@rm -f $(ALL)
+

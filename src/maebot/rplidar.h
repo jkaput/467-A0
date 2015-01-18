@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <stdint.h>
+#include <pthread.h>
 
 #include "lcmtypes/maebot_laser_scan_t.h"
 
@@ -45,6 +46,10 @@ typedef struct rp_descriptor
     uint8_t data_type;
 } rp_descriptor_t;
 
+
+extern pthread_mutex_t need_publish_mutex;
+extern uint8_t need_publish;
+
 /* Exit current device state */
 void rp_lidar_stop(int dev);
 
@@ -52,10 +57,8 @@ void rp_lidar_stop(int dev);
 void rp_lidar_reset(int dev);
 
 /* Scan when ready */
+//void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel);
 void rp_lidar_scan(int dev, lcm_t *lcm, const char *channel);
-
-/* Scan when ready, for time seconds */
-void rp_lidar_scan_timed(int dev, lcm_t *lcm, const char *channel, int time);
 
 /* Force a scan regardless of rotation speed */
 void rp_lidar_force_scan(int dev, lcm_t *lcm, const char *channel);
@@ -68,3 +71,4 @@ int rp_lidar_check_health(int dev);
 
 
 #endif
+
