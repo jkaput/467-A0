@@ -103,15 +103,16 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 		odo_state.right = msg->encoder_right_ticks;
 		
 		
+		printf("%f\t%f\t%f\n", delta_x, delta_y, delta_theta);
 
+		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
+		state.buffer_name[6]++;
+		vx_resc_t *one_point = vx_resc_copyf(pt,3);
+		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer_name);
+		vx_object_t *trace = vxo_chain(vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+		vx_buffer_add_back(buf, trace);
+		vx_buffer_swap(buf);
 	}//end else
-
-    float pt[3] = {0.0, 0.0, 0.0};
-    state.buffer_name[6]++;
-    vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer_name);
-    vx_object_t *trace = vxo_chain(vxo_mat_rotate_z(delta_theta),
-				   vxo_mat_translate3(delta_x, delta_y, 0.0),
-				   vxo_points(vx_resc_copy(pt,3), 1, vxo_points_style(vx_red, 2.0f)));
 }
 
 static void
