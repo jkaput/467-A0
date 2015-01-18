@@ -4,9 +4,10 @@
 
 #include <lcm/lcm.h>
 #include "lcmtypes/maebot_motor_feedback_t.h"
-
+#include "../math/matd.h"
 
 //might not 
+/*
 typedef struct {
 	float x;
 	float y;
@@ -19,6 +20,23 @@ typedef struct {
 }State;
 
 State state = {0.0, 0.0, 0.0, 0, 0, 0, 0, 0}; 
+*/
+
+typedef struct{
+	matd_t* bot; // 3x1 state [x][y][theta]
+} State;
+
+State state;
+
+typedef struct{
+	int32_t left;
+	int32_t right;
+	int8_t init;
+} Odo_State;
+
+Odo_State odo_state = {0, 0, 0};
+
+
 
 float delta_x;
 float delta_y;
@@ -45,9 +63,9 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 */
 
 	//update state
-	if(!state.init){
-		state.prev_left = msg->encoder_left_ticks;
-		state.prev_right = msg->encoder_right_ticks;
+	if(odo_state.init){
+		odo_state.left = msg->encoder_left_ticks;
+		odo_state.right = msg->encoder_right_ticks;
 		state.init = 1;
 	} else{
 		
@@ -59,6 +77,8 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 int
 main (int argc, char *argv[])
 {
+	state.bot = matd_create(3,1); // [x][y][theta]
+	
 	delta_x = 0.0;
 	delta_y = 0.0;
 	delta_theta = 0.0;
