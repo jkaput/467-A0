@@ -83,7 +83,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
     int res = system ("clear");
     if (res)
         printf ("system clear failed\n");
-
+    printf("Handling motor\n");
 /*  //print a bunch of info 
     printf ("Subscribed to channel: %s\n", channel);
     printf ("utime: %"PRId64"\n", msg->utime);
@@ -114,6 +114,8 @@ static void
 rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
 		       const maebot_laser_scan_t *scan, void *user)
 {
+  printf("Handling rplidar\n");
+
   //ADD_OBJECT(vxo_line, (vxo_mesh_style(vx_green)));
   int i, npoints;
   float single_line[6]; // x1, y1, z1, x2, y2, z2
@@ -128,6 +130,9 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
   single_line[1] = /*maebot starting y*/ 0.0;
   single_line[2] = /*maebot starting z*/ 0.0;
 
+  vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "mybuf");
+  
+
   for(i = 0; i < scan->num_ranges; ++i){
     // currently centered around origin, will need to be centered around maebot position
     single_line[3] = (scan->ranges[i]) * cos(scan->thetas[i]);
@@ -135,11 +140,13 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
     single_line[5] = 0.0;
 
     vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
-    ADD_OBJECT(vxo_lines, (verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
-    single_line[0] = single_line[3];
-    single_line[1] = single_line[4];
-    single_line[2] = single_line[5];
+    //ADD_OBJECT(vxo_lines, (verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
+    vx_buffer_add_back(mybuf, vxo_lines(verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
+    //single_line[0] = single_line[3];
+    //single_line[1] = single_line[4];
+    //single_line[2] = single_line[5];
   }
+    vx_buffer_swap(mybuf);
 }
 
 static void*
@@ -147,7 +154,8 @@ lcm_thread_handler(void *args)
 {
   State *lcm_state = (State*) args;
   while(1){
-    lcm_handle (lcm_state->motor_lcm);
+    //lcm_handle (lcm_state->motor_lcm);
+    printf("Looping in lcm_thread_handler\n");
     lcm_handle (lcm_state->lidar_lcm);
   }
   return NULL;
@@ -181,15 +189,17 @@ main (int argc, char *argv[])
 	  return 1;
 
 	//printf ("utime,\t\tleft_ticks,\tright_ticks\n");
-
+	/*
 	maebot_motor_feedback_t_subscribe (state.motor_lcm,
                         	           "MAEBOT_MOTOR_FEEDBACK",
                 	                   motor_feedback_handler,
         	                           NULL);
+	*/
 	maebot_laser_scan_t_subscribe (state.lidar_lcm,
 				       "MAEBOT_LASER_SCAN",
 				       rplidar_feedback_handler,
 				       NULL);
+	
 	pthread_t lcm_handler_thread;
 	pthread_create(&lcm_handler_thread, NULL, lcm_thread_handler, (void*)(&state));
 
