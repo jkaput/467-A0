@@ -15,10 +15,11 @@ BIN_DIFF_DRIVE_TEST = $(BIN_PATH)/maebot_diff_drive_test
 BIN_SENSOR_DATA_TEST = $(BIN_PATH)/maebot_sensor_data_test
 BIN_PROJECT0 = $(BIN_PATH)/project0
 BIN_LIDAR_SCAN = $(BIN_PATH)/lidar_scan
+BIN_ODO_TRACE = $(BIN_PATH)/odo_trace
 
-ALL = $(LIB_EECS467) $(BIN_MAEBOT_DRIVER) $(BIN_LED_TEST) $(BIN_LASER_TEST) \
+ALL = $(BIN_ODO_TRACE) $(LIB_EECS467) $(BIN_MAEBOT_DRIVER) $(BIN_LED_TEST) $(BIN_LASER_TEST) \
       $(BIN_MOTOR_FEEDBACK_TEST) $(BIN_DIFF_DRIVE_TEST) $(BIN_SENSOR_DATA_TEST) \
-      $(BIN_RPLIDAR_DRIVER) $(BIN_PROJECT0) $(BIN_LIDAR_SCAN)
+      $(BIN_RPLIDAR_DRIVER) $(BIN_PROJECT0) $(BIN_LIDAR_SCAN) \
 
 all: $(ALL)
 
@@ -55,6 +56,10 @@ $(BIN_SENSOR_DATA_TEST): sensor_data_test.o $(LIBDEPS)
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
 $(BIN_PROJECT0): project0.o $(LIBDEPS)
+	@echo "\t$@"
+	@$(CC) -o $@ $^ $(LDFLAGS) 
+
+$(BIN_ODO_TRACE): odo_trace.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS) 
 
