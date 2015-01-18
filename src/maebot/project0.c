@@ -277,8 +277,8 @@ int init_rplidar(int argc, char** argv) {
 
 static void 
 destroy_rplidar(){
-	pthread_join(rp_run_state->scan_thread, NULL);
 	rp_lidar_stop(rp_run_state->dev);
+	pthread_join(rp_run_state->scan_thread, NULL);
 
     lcm_destroy(rp_run_state->lcm);
     getopt_destroy(rp_run_state->gopt);
