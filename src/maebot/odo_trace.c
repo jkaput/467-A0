@@ -26,7 +26,8 @@ typedef struct{
   lcm_t *motor_lcm;
   lcm_t *lidar_lcm;
 
-	matd_t* bot; // 3x1 state [x][y][theta]
+  matd_t* bot; // 3x1 state [x][y][theta]
+  char buffer_name[8];
 } State;
 State state;
 
@@ -105,6 +106,12 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 
 	}//end else
 
+    float pt[3] = {0.0, 0.0, 0.0};
+    state.buffer_name[6]++;
+    vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer_name);
+    vx_object_t *trace = vxo_chain(vxo_mat_rotate_z(delta_theta),
+				   vxo_mat_translate3(delta_x, delta_y, 0.0),
+				   vxo_points(vx_resc_copy(pt,3), 1, vxo_points_style(vx_red, 2.0f)));
 }
 
 static void
@@ -116,18 +123,15 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
   //ADD_OBJECT(vxo_line, (vxo_mesh_style(vx_green)));
   int i, npoints;
   float single_line[6]; // x1, y1, z1, x2, y2, z2
-  // need to:
-  //    center around maebot's position
 
-  //    convert to x,y
-
-  //    plot lines
   npoints = 2;
   single_line[0] = /*maebot starting x*/ 0.0;
   single_line[1] = /*maebot starting y*/ 0.0;
   single_line[2] = /*maebot starting z*/ 0.0;
 
-  vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "mybuf");
+  state.buffer_name[6]++;
+
+  vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, state.buffer_name);
   
 
   for(i = 0; i < scan->num_ranges; ++i){
@@ -137,23 +141,33 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
     single_line[5] = 0.0;
 
     vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
-    //ADD_OBJECT(vxo_lines, (verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
-    vx_buffer_add_back(mybuf, vxo_lines(verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
-    //single_line[0] = single_line[3];
-    //single_line[1] = single_line[4];
-    //single_line[2] = single_line[5];
+    /*
+    vx_object_t *line = vxo_chain(vxo_mat_rotate_z(matd_get(state.bot,0,2)),
+				  vxo_mat_translate3(matd_get(state.bot,0,0),matd_get(state.bot,0,1), 0.0),
+				  vxo_lines(verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
+    */
+    vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f));
+    vx_buffer_add_back(mybuf, line);
   }
     vx_buffer_swap(mybuf);
 }
 
 static void*
-lcm_thread_handler(void *args)
+lcm_lidar_handler(void *args)
 {
   State *lcm_state = (State*) args;
   while(1){
-    //lcm_handle (lcm_state->motor_lcm);
-    printf("Looping in lcm_thread_handler\n");
     lcm_handle (lcm_state->lidar_lcm);
+  }
+  return NULL;
+}
+
+static void*
+lcm_motor_handler(void *args)
+{
+  State *lcm_state = (State*) args;
+  while(1){
+    lcm_handle(lcm_state->motor_lcm);
   }
   return NULL;
 }
@@ -167,7 +181,7 @@ main (int argc, char *argv[])
   
   vx_state.world = vx_world_create();
   vx_state.obj_data = zarray_create(sizeof(obj_data_t));
-
+  strcpy(state.buffer_name, "buffer0");
   // ADD_OBJECT(obj_type, args);
 
   vx_application_t app = {.impl=&vx_state, .display_started = display_started, .display_finished = display_finished};
@@ -191,13 +205,15 @@ main (int argc, char *argv[])
                         	           "MAEBOT_MOTOR_FEEDBACK",
                 	                   motor_feedback_handler,
         	                           NULL);
+
 	maebot_laser_scan_t_subscribe (state.lidar_lcm,
 				       "MAEBOT_LASER_SCAN",
 				       rplidar_feedback_handler,
 				       NULL);
 	
-	pthread_t lcm_handler_thread;
-	pthread_create(&lcm_handler_thread, NULL, lcm_thread_handler, (void*)(&state));
+	pthread_t lcm_lidar_thread, lcm_motor_thread;
+	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
+	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
 
     vx_gtk_display_source_t * appwrap = vx_gtk_display_source_create(&app);
     GtkWidget * window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -208,6 +224,8 @@ main (int argc, char *argv[])
     gtk_widget_show (canvas); // XXX Show all causes errors!
 
     g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+
 
     gtk_main (); // Blocks as long as GTK window is open
     gdk_threads_leave ();
