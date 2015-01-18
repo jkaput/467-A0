@@ -20,6 +20,7 @@
 
 #define WHEEL_BASE 0.08f
 #define WHEEL_DIAMETER 0.032f
+#define DISTANCE_TICK 0.0002094f
 
 typedef struct{
   lcm_t *motor_lcm;
@@ -51,6 +52,8 @@ vx_state_t vx_state;
 int32_t delta_left;
 int32_t delta_right;
 float delta_s;
+float delta_s_l;
+float delta_s_r;
 float delta_x;
 float delta_y;
 float delta_theta;
@@ -83,8 +86,10 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 	} else{
 		delta_left = msg->encoder_left_ticks - odo_state.left;
 		delta_right = msg->encoder_right_ticks - odo_state.right;
-		delta_s =((float)(delta_left + delta_right))/2.0;
-		delta_theta = ((float)(delta_right - delta_left))/2.0 + matd_get(state.bot, 2, 0);
+		delta_s_left = DISTANCE_TICK * delta_left;
+		delta_s_right = DISTANCE_TICK * delta_right;
+		delta_s =((float)(delta_s_left + delta_s_right))/2.0;
+		delta_theta = ((float)(delta_s_right - delta_s_left))/2.0 + matd_get(state.bot, 2, 0);
 		matd_put(state.bot, 2, 0, delta_theta);
 		
 		delta_x = abs(delta_s)*cosf((float)delta_theta) + matd_get(state.bot, 0, 0);
