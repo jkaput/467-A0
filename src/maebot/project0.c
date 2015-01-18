@@ -12,9 +12,7 @@
 #include "lcmtypes/maebot_motor_command_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
 #include "rplidar.h"
-#include "take_a_pic_2.h"
-
-#include "rplidar.h"
+#include "take_a_pic.h"
 
 #define PERIOD 50000 //us  -> 20Hz
 #define MOTOR_SPEED 0.25f
@@ -159,7 +157,6 @@ void drive_forward(int dist){
 }
 
 void turn_left(){
-
 	lcm_t *lcm = lcm_create (NULL);
 
 	maebot_motor_feedback_t_subscribe (lcm,
@@ -169,7 +166,9 @@ void turn_left(){
 
 
 	lcm_handle(lcm);
-
+	int32_t wheels_diff, desired_diff;
+	desired_diff = 450;
+	wheels_diff = state.right - state.left;
 
 	//turn left
 	pthread_mutex_lock (&motor_msg_mutex);
@@ -177,7 +176,12 @@ void turn_left(){
 	motor_msg.motor_right_speed = MOTOR_SPEED * 0.75f; 
 	pthread_mutex_unlock (&motor_msg_mutex);
 	
-	usleep(1000000 - 200);
+	while (1) {
+		lcm_handle(lcm);
+		if (state.right - state.left - wheels_diff >= desired_diff)
+			break;
+		usleep(1000);
+	}
 	//stop
 	pthread_mutex_lock (&motor_msg_mutex);
    	 motor_msg.motor_left_speed  = MOTOR_STOP;
@@ -274,6 +278,7 @@ int init_rplidar(int argc, char** argv) {
 static void 
 destroy_rplidar(){
 	pthread_join(rp_run_state->scan_thread, NULL);
+	rp_lidar_stop(rp_run_state->dev);
 
     lcm_destroy(rp_run_state->lcm);
     getopt_destroy(rp_run_state->gopt);
