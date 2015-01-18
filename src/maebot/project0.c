@@ -8,7 +8,9 @@
 #include "common/timestamp.h"
 #include "lcmtypes/maebot_motor_command_t.h"
 #include "lcmtypes/maebot_motor_feedback_t.h"
+#include "rplidar.h"
 #include "take_a_pic_2.h"
+#include "take_a_scan.h"
 
 #define PERIOD 50000 //us  -> 20Hz
 #define MOTOR_SPEED 0.25f
@@ -165,18 +167,22 @@ void drive_in_a_rectangle(){
 	
 	drive_forward(2);
 	take_a_pic(state.pic++);
+	take_a_scan();
 	turn_left();
 	
 	drive_forward(3);
 	take_a_pic(state.pic++);
+	take_a_scan();
 	turn_left();
 	
 	drive_forward(2);
 	take_a_pic(state.pic++);
+	take_a_scan();
 	turn_left();
 	
 	drive_forward(3);
 	take_a_pic(state.pic++);
+	take_a_scan();
 	turn_left();
 }
 

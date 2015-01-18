@@ -55,7 +55,7 @@ $(BIN_SENSOR_DATA_TEST): sensor_data_test.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_PROJECT0): project0.o $(LIBDEPS)
+$(BIN_PROJECT0): project0.o rplidar.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS) 
 

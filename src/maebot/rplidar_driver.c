@@ -47,10 +47,7 @@ static void* scan_loop(void *args)
       printf("Error starting rplidar motor\n");
     }
     // This loops forever, barring an error
-    //rp_lidar_scan(state->dev, state->lcm, state->channel);
-    float thing1[2000];
-    int thing2;
-    rp_lidar_scan(state->dev, state->lcm, state->channel, thing1, &thing2);
+    rp_lidar_scan(state->dev, state->lcm, state->channel);
     printf("Terminating rplidar...\n");
     if (system("echo 0 > /sys/class/gpio/gpio122/value")) {
       printf("Error Stopping rplidar motor\n");
