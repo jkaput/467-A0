@@ -27,7 +27,10 @@ typedef struct{
   lcm_t *lidar_lcm;
 
   matd_t* bot; // 3x1 state [x][y][theta]
-  char buffer_name[8];
+  char line_buffer[15];
+  char laser_buffer[15];
+  int line_counter;
+  int laser_counter;
 } State;
 State state;
 
@@ -87,33 +90,42 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 	} else{
 		delta_left = msg->encoder_left_ticks - odo_state.left;
 		delta_right = msg->encoder_right_ticks - odo_state.right;
-		delta_s_l = DISTANCE_TICK * delta_left;
-		delta_s_r = DISTANCE_TICK * delta_right;
+		printf("\t%d\t%d\n", delta_left, delta_right);
+		delta_s_l = (DISTANCE_TICK * (float)delta_left);
+		delta_s_r = (DISTANCE_TICK * (float)delta_right);
 		delta_s =((float)(delta_s_l + delta_s_r))/2.0;
-		delta_theta = ((float)(delta_s_r - delta_s_l))/2.0 + matd_get(state.bot, 2, 0);
+		delta_theta = ((float)(delta_s_r - delta_s_l))/WHEEL_BASE + matd_get(state.bot, 2, 0);
+		printf("\t%f\t%f\t%f\n", delta_s_l, delta_s_r, delta_theta);
 		matd_put(state.bot, 2, 0, delta_theta);
 		
-		delta_x = abs(delta_s)*cosf((float)delta_theta) + matd_get(state.bot, 0, 0);
+		if(delta_s < 0)
+		  delta_s = delta_s*(-1);
+
+		delta_x = delta_s*fcos((float)delta_theta) + matd_get(state.bot, 0, 0);
 		matd_put(state.bot, 0, 0, delta_x);
 
-		delta_y = abs(delta_s)*sinf((float)delta_theta) + matd_get(state.bot, 1, 0);
+		delta_y = delta_s*fsin((float)delta_theta) + matd_get(state.bot, 1, 0);
 		matd_put(state.bot, 1, 0, delta_y);
+
+		printf("%f\t%f\n", delta_x, delta_y);
 
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
 		
 		
-		printf("%f\t%f\t%f\n", delta_x, delta_y, delta_theta);
+		printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
 
-		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
-		state.buffer_name[6]++;
+		float pt[3] = {4.0*matd_get(state.bot, 0, 0), 4.0*matd_get(state.bot, 1, 0), 0.0};
+		sprintf(state.line_buffer, "%d", state.line_counter++);
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
-		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer_name);
+		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.line_buffer);
 		vx_object_t *trace = vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
 					       vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		vx_buffer_add_back(buf, trace);
 		vx_buffer_swap(buf);
 	}//end else
+
+	//usleep(100000);
 }
 
 static void
@@ -131,9 +143,9 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel,
   single_line[1] = /*maebot starting y*/ 0.0;
   single_line[2] = /*maebot starting z*/ 0.0;
 
-  state.buffer_name[6]++;
+  sprintf(state.laser_buffer, "%d", state.laser_counter++);
 
-  vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, state.buffer_name);
+  vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, state.laser_buffer);
   
 
   for(i = 0; i < scan->num_ranges; ++i){
@@ -177,13 +189,13 @@ lcm_motor_handler(void *args)
 int
 main (int argc, char *argv[])
 {
-
+  state.line_counter = 0;
+  state.laser_counter = 0;
 		fasttrig_init();
   vx_global_init();
   
   vx_state.world = vx_world_create();
   vx_state.obj_data = zarray_create(sizeof(obj_data_t));
-  strcpy(state.buffer_name, "buffer0");
   // ADD_OBJECT(obj_type, args);
 
   vx_application_t app = {.impl=&vx_state, .display_started = display_started, .display_finished = display_finished};
