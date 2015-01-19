@@ -84,7 +84,7 @@ sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
 		
 		delta_x_global = delta_x_local * cosf(matd_get(state.bot, 2, 0)) +
 						delta_y_local * cosf((PI/2) - matd_get(state.bot, 2, 0));
-		delta_Y_global = delta_x_local * sinf(matd_get(state.bot, 2, 0)) +
+		delta_y_global = delta_x_local * sinf(matd_get(state.bot, 2, 0)) +
 						delta_y_local * sinf((PI/2) - matd_get(state.bot, 2, 0));
 		//update x, y state
 		matd_put(state.bot, 0, 0, matd_get(state.bot, 0, 0) + delta_x_global);
