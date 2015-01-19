@@ -112,14 +112,15 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 		odo_state.right = msg->encoder_right_ticks;
 		
 		
-		//printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
+		printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
 		
 		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
 		sprintf(state.line_buffer, "%d", state.line_counter++);
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.line_buffer);
-		vx_object_t *trace = vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
-									   vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
+		                    /*vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
+				       vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));*/
 		vx_buffer_add_back(buf, trace);
 		vx_buffer_swap(buf);
 	}//end else
@@ -127,14 +128,20 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 	//usleep(100000);
 }
 
+/***********
+   this is not an actual rotation matrix
+   effectively flips point about x axis
+   to be flipped about y axis after (see line 176)
+ *********/
 static void
-rotate_matrix_z(float* x, float* y, double theta) {
+rotate_matrix_z(float* x, float* y, float theta) {
 	float new_x, new_y;
-	new_x = *x * cosf(theta) - *y * sinf(theta);
-	new_y = *x * sinf(theta) + *y * cosf(theta);
+	new_x = *x * cosf(theta) + *y * sinf(theta);
+	new_y = (-1) * (*x) * sinf(theta) + *y * cosf(theta);
 	*x = new_x;
 	*y = new_y;
 }
+
 
 static void
 rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user)
@@ -159,12 +166,14 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 	
 	for(i = 0; i < scan->num_ranges; ++i){
 		// currently centered around origin, will need to be centered around maebot position
+	  if(scan->intensities[i] <= 0)
+	    continue;
 		float x, y;
 		x = (scan->ranges[i]) * cosf(scan->thetas[i]);
 		y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-		rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0) + scan->thetas[i]);
+		rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0));
 		single_line[3] = single_line[0] + x;
-		single_line[4] = single_line[1] + y;
+		single_line[4] = single_line[1] - y;
 		single_line[5] = 0.0;
 		
 		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
