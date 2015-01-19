@@ -98,7 +98,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 		matd_put(state.bot, 2, 0, delta_theta);
 		
 		if(delta_s < 0)
-		delta_s = delta_s*(-1);
+		  delta_s = delta_s*(-1.0);
 		
 		delta_x = delta_s*fcos((float)delta_theta) + matd_get(state.bot, 0, 0);
 		matd_put(state.bot, 0, 0, delta_x);
@@ -114,7 +114,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 		
 		//printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
 		
-		float pt[3] = {4.0*matd_get(state.bot, 0, 0), 4.0*matd_get(state.bot, 1, 0), 0.0};
+		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
 		sprintf(state.line_buffer, "%d", state.line_counter++);
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.line_buffer);
@@ -128,10 +128,10 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 }
 
 static void
-rotate_matrix_z(double* x, double* y, double theta) {
-	double new_x, new_y;
-	new_x = *x * cos(theta) - *y * sin(theta);
-	new_y = *x * sin(theta) + *y * cos(theta);
+rotate_matrix_z(float* x, float* y, double theta) {
+	float new_x, new_y;
+	new_x = *x * cosf(theta) - *y * sinf(theta);
+	new_y = *x * sinf(theta) + *y * cosf(theta);
 	*x = new_x;
 	*y = new_y;
 }
@@ -147,8 +147,8 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 	const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 	
 	npoints = 2;
-	single_line[0] = /*maebot starting x*/ 4.0 * (matd_get(state.bot, 0, 0));
-	single_line[1] = /*maebot starting y*/ 4.0 * (matd_get(state.bot, 1, 0));
+	single_line[0] = /*maebot starting x*/ (matd_get(state.bot, 0, 0));
+	single_line[1] = /*maebot starting y*/ (matd_get(state.bot, 1, 0));
 	single_line[2] = /*maebot starting z*/ 0.0;
 	
 	sprintf(state.laser_buffer, "%d", (state.laser_counter++) % 4);
@@ -159,21 +159,17 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 	
 	for(i = 0; i < scan->num_ranges; ++i){
 		// currently centered around origin, will need to be centered around maebot position
-		double x, y;
-		x = 4.0 * (scan->ranges[i]) * cos(scan->thetas[i]);
-		y = 4.0 * (scan->ranges[i]) * sin(scan->thetas[i]);
-		rotate_matrix_z(&x, &y, scan->thetas[i]);
+		float x, y;
+		x = (scan->ranges[i]) * cosf(scan->thetas[i]);
+		y = (scan->ranges[i]) * sinf(scan->thetas[i]);
+		rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0) + scan->thetas[i]);
 		single_line[3] = single_line[0] + x;
 		single_line[4] = single_line[1] + y;
 		single_line[5] = 0.0;
 		
 		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
-		/*
-		vx_object_t *line = vxo_chain(vxo_mat_rotate_z(matd_get(state.bot,0,2)),
-		vxo_mat_translate3(matd_get(state.bot,0,0),matd_get(state.bot,0,1), 0.0),
-		vxo_lines(verts, npoints, GL_LINES, vxo_points_style(vx_green, 2.0f)));
-		*/
-		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.laser_counter % 4], 2.0f));
+		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, 
+					      vxo_points_style(colors[state.laser_counter % 4], 2.0f));
 		vx_buffer_add_back(mybuf, line);
 	}
 	vx_buffer_swap(mybuf);
@@ -222,22 +218,24 @@ main (int argc, char *argv[])
 	
 	state.motor_lcm = lcm_create (NULL);
 	if(!state.motor_lcm)
-	return 1;
+	  return 1;
 	
 	state.lidar_lcm = lcm_create(NULL);
 	if(!state.lidar_lcm)
-	return 1;
+	  return 1;
 	
 	maebot_motor_feedback_t_subscribe (state.motor_lcm,
-	"MAEBOT_MOTOR_FEEDBACK",
-	motor_feedback_handler,
-	NULL);
+					   "MAEBOT_MOTOR_FEEDBACK",
+					   motor_feedback_handler,
+					   NULL);
 	
 	maebot_laser_scan_t_subscribe (state.lidar_lcm,
-	"MAEBOT_LASER_SCAN",
-	rplidar_feedback_handler,
-	NULL);
+				       "MAEBOT_LASER_SCAN",
+				       rplidar_feedback_handler,
+				       NULL);
 	
+	
+
 	pthread_t lcm_lidar_thread, lcm_motor_thread;
 	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
 	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
@@ -252,7 +250,7 @@ main (int argc, char *argv[])
 	
 	g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	
-	
+
 	
 	gtk_main (); // Blocks as long as GTK window is open
 	gdk_threads_leave ();
@@ -303,6 +301,7 @@ static void display_started(vx_application_t * app, vx_display_t * disp)
 	vx_layer_t * layer = vx_layer_create(VX_state->world);
 	vx_layer_set_display(layer, disp);
 	vx_layer_set_background_color(layer, vx_black);
+
 	// XXX bug in world
 	draw(VX_state->world, VX_state->obj_data);
 }
