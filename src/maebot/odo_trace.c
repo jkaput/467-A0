@@ -33,8 +33,10 @@ typedef struct{
 	lcm_t *imu_lcm;
 	
 	matd_t* bot; // 3x1 state [x][y][theta]
-	char buffer[32];
-	int counter;
+	//char buffer[32];
+	int odo_counter;
+	int rp_counter;
+	int imu_counter;
 } State;
 State state;
 
@@ -138,11 +140,11 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 		
 		
 		//printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
-		
+		char odo_buffer[32];
 		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
-		sprintf(state.buffer, "%d", state.counter++);
+		sprintf(odo_buffer, "odo%d", state.odo_counter++);
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
-		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, state.buffer);
+		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
 		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
 		                    /*vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
 				       vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));*/
@@ -183,9 +185,10 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 	single_line[1] = /*maebot starting y*/ (matd_get(state.bot, 1, 0));
 	single_line[2] = /*maebot starting z*/ 0.0;
 	
-	sprintf(state.buffer, "%d", (state.counter++));
+	char rp_buffer[32];
+	sprintf(rp_buffer, "rp%d", (state.rp_counter++));
 	
-	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, state.buffer);
+	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
 	//printf("\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0));
 	
 	
@@ -203,10 +206,10 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 		
 		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
 		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, 
-					      vxo_points_style(colors[state.counter % 4], 2.0f));
+					      vxo_points_style(colors[state.rp_counter % 4], 2.0f));
 		vx_buffer_add_back(mybuf, line);
 	}
-	//vx_buffer_swap(mybuf);
+	vx_buffer_swap(mybuf);
 }
 
 static void
@@ -281,11 +284,12 @@ sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
   //printf("%f\t\t%f\t\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
   //printf("%f\t%f\t\t%f\n", matd_get(imu_state.bot, 0, 0), matd_get(imu_state.bot, 1, 0), matd_get(imu_state.bot, 2, 0));
   
+  char imu_buffer[32];
   float pt[3] = {(-0.125) * matd_get(imu_state.bot, 0, 0), (-0.125) * matd_get(imu_state.bot, 1, 0), 0.0};
-  sprintf(state.buffer, "%d", state.counter++);
+  sprintf(imu_buffer, "imu%d", state.imu_counter++);
   //printf("\t\t%s\n", state.buffer);
   vx_resc_t *one_point = vx_resc_copyf(pt,3);
-  vx_buffer_t *imu_buf = vx_world_get_buffer(vx_state.world, state.buffer);
+  vx_buffer_t *imu_buf = vx_world_get_buffer(vx_state.world, imu_buffer);
   vx_object_t *imu_trace = vxo_points(one_point, 1, vxo_points_style(vx_green, 2.0f)); 
   vx_buffer_add_back(imu_buf, imu_trace);
   vx_buffer_swap(imu_buf);
@@ -325,7 +329,9 @@ lcm_imu_handler(void *args)
 int
 main (int argc, char *argv[])
 {
-	state.counter = 0;
+	state.odo_counter = 0;
+	state.rp_counter = 0;
+	state.imu_counter = 0;
 	fasttrig_init();
 	vx_global_init();
 	

@@ -83,16 +83,80 @@ status_handler (const lcm_recv_buf_t *rbuf,
     for (int id = 0; id < msg->len; id++) {
         dynamixel_status_t stat = msg->statuses[id];
         printf ("[id %d]=%6.3f ",id, stat.position_radians);
-		float bar_scale = 30;
-        vx_object_t *vxo_square = vxo_chain (vxo_mat_translate2 (id * (1.1), msg->statuses[id].position_radians/2.0*bar_scale),
-                                             vxo_mat_scale3(1,msg->statuses[id].position_radians * bar_scale,1),
-                                             vxo_box (vxo_lines_style (vx_red, 2)));
+		float bar_scale = 0.125;
 
+		vx_object_t *vxo_square;
+		if(msg->statuses[id].position_radians > 0){
+		  vxo_square = vxo_chain(vxo_mat_translate3(bar_scale * msg->statuses[id].position_radians - 0.4, bar_scale * id - 0.3, 0),
+					 vxo_mat_scale3(bar_scale * msg->statuses[id].position_radians*2.0, bar_scale * 1, 0),
+					 vxo_mat_rotate_z(M_PI/2.0),
+					 vxo_box(vxo_mesh_style(vx_blue),
+						 vxo_lines_style(vx_white,2.0f)));
+		}
+		else{
+		vxo_square = vxo_chain(vxo_mat_translate3(bar_scale * msg->statuses[id].position_radians/2.0 - 0.4, bar_scale * id - 0.3, 0),
+				       vxo_mat_scale3(bar_scale * msg->statuses[id].position_radians, bar_scale * 1, 0),
+				       vxo_mat_rotate_z(M_PI/2.0),
+				       vxo_box(vxo_mesh_style(vx_red),
+					       vxo_lines_style(vx_white,2.0f)));
+		}			       
+					       
         // We add this object to a different buffer so it may be rendered
         // separately if desired
         plot_channel[3] = '0' + id;
-        vx_buffer_add_back (vx_world_get_buffer (state->vxworld, plot_channel), vxo_square);
-        vx_buffer_swap (vx_world_get_buffer (state->vxworld, plot_channel));
+	vx_buffer_t *buf = vx_world_get_buffer (state->vxworld, plot_channel);
+        vx_buffer_add_back (buf, vxo_square);
+	
+	char str1[64];
+	sprintf(str1, "<<left,#ffffff, serif>>Base\t%f", msg->statuses[0].position_radians);
+	vx_object_t *text_base = vxo_chain(vxo_mat_translate3(0.27, -0.3, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str1));
+	vx_buffer_add_back(buf, text_base);
+
+	char str2[64];
+	sprintf(str2, "<<left,#ffffff, serif>>Shoulder\t%f", msg->statuses[1].position_radians);
+	vx_object_t *text_shoulder = vxo_chain(vxo_mat_translate3(0.27, -0.175, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str2));
+	vx_buffer_add_back(buf, text_shoulder);
+
+	char str3[64];
+	sprintf(str3, "<<left,#ffffff, serif>>Elbow\t%f", msg->statuses[2].position_radians);
+	vx_object_t *text_elbow = vxo_chain(vxo_mat_translate3(0.27, -0.05, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str3));
+	vx_buffer_add_back(buf, text_elbow);
+
+	char str4[64];
+	sprintf(str4, "<<left,#ffffff, serif>>Wrist bend\t%f", msg->statuses[3].position_radians);
+	vx_object_t *text_wrist1 = vxo_chain(vxo_mat_translate3(0.27, 0.075, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str4));
+	vx_buffer_add_back(buf, text_wrist1);
+
+	char str5[64];
+	sprintf(str5, "<<left,#ffffff, serif>>Wrist rotate\t%f", msg->statuses[4].position_radians);
+	vx_object_t *text_wrist2 = vxo_chain(vxo_mat_translate3(0.27, 0.20, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str5));
+	vx_buffer_add_back(buf, text_wrist2);
+
+	char str6[64];
+	sprintf(str6, "<<left,#ffffff, serif>>Fingers\t%f", msg->statuses[5].position_radians);
+	vx_object_t *text_fingers = vxo_chain(vxo_mat_translate3(0.27, 0.32, 0),
+				      vxo_mat_scale3(bar_scale*0.025, bar_scale*0.025, 0),
+				      vxo_text_create(VXO_TEXT_ANCHOR_CENTER,
+						      str6));
+	vx_buffer_add_back(buf, text_fingers);
+	
+	
+        vx_buffer_swap (buf);
     }
     printf ("\n");
 }
@@ -222,7 +286,7 @@ main (int argc, char *argv[])
     state->vxapp.display_started = eecs467_default_display_started;
     state->vxapp.display_finished = eecs467_default_display_finished;
     state->vxapp.impl = eecs467_default_implementation_create (state->vxworld, state->vxeh);
-    vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "grid"), vxo_grid());
+    //    vx_buffer_add_back (vx_world_get_buffer (state->vxworld, "grid"), vxo_grid());
     vx_buffer_swap (vx_world_get_buffer (state->vxworld, "grid"));
 
     state->command_channel = getopt_get_string (gopt, "command-channel");

@@ -65,10 +65,6 @@ $(BIN_ODO_TRACE): odo_trace.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS) 
 
-$(BIN_IMU_TRACE): imu_trace.o $(LIBDEPS)
-	@echo "\t$@"
-	@$(CC) -o $@ $^ $(LDFLAGS) 
-
 $(BIN_LIDAR_SCAN): lidar_scan.o rplidar.o $(LIB_EECS467) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)

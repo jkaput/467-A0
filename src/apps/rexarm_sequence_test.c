@@ -99,7 +99,7 @@ command_loop (void *user)
                 cmds.commands[id].utime = utime_now ();
                 cmds.commands[id].position_radians = 0.0;
                 cmds.commands[id].speed = 0.0;
-                cmds.commands[id].max_torque = 0.0;
+                cmds.commands[id].max_torque = 0.5;
         		dynamixel_command_list_t_publish (state->lcm, state->command_channel, &cmds);
             }
             else {
@@ -107,9 +107,9 @@ command_loop (void *user)
 				cmds.commands[id].utime = utime_now ();
                 cmds.commands[id].position_radians = 0.0;
                 cmds.commands[id].speed = 0.05;
-                cmds.commands[id].max_torque = 0.35;
+                cmds.commands[id].max_torque = 0.5;
         		dynamixel_command_list_t_publish (state->lcm, state->command_channel, &cmds);
-        		usleep (10*1000000/hz);
+        		usleep (5*1000000/hz);
                 
 				cmds.commands[id].position_radians = pi/12.0;
 				cmds.commands[id].utime = utime_now ();
@@ -119,12 +119,12 @@ command_loop (void *user)
 				cmds.commands[id].position_radians = 0.0;
 				cmds.commands[id].utime = utime_now ();
         		dynamixel_command_list_t_publish (state->lcm, state->command_channel, &cmds);
-        		usleep (10*1000000/hz);
+        		usleep (5*1000000/hz);
             }
         }
        // dynamixel_command_list_t_publish (state->lcm, state->command_channel, &cmds);
 
-        usleep (1000000/hz);
+        usleep (500000/hz);
     }
 
     free (cmds.commands);
